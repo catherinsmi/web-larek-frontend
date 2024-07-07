@@ -11,7 +11,7 @@
 - src/pages/index.html — HTML-файл главной страницы
 - src/types/index.ts — файл с типами
 - src/index.ts — точка входа приложения
-- src/styles/styles.scss — корневой файл стилей
+- src/scss/styles.scss— корневой файл стилей
 - src/utils/constants.ts — файл с константами
 - src/utils/utils.ts — файл с утилитами
 
@@ -41,13 +41,20 @@ npm run build
 yarn build
 ```
 
+## Об архитектуре 
 Приложение **Web-larek** выполнено в концепции архитектурного паттерна Model-View-Presenter, который разделяет приложение на три компонента: Model (слой работы с данными приложения), View (слой представления UI) и Presenter (содержит бизнес-логику приложения).
+
+Взаимодействия внутри приложения происходят через события. Модели инициализируют события, слушатели событий в основном коде выполняют передачу данных компонентам отображения, а также вычислениями между этой передачей, и еще они меняют значения в моделях.
 
 ## Слой бизнес-логики:
 
 В качестве презентера в начале разработки приложения будет выступать файл Index.js, в котором по средствам вызова коллбэков будет реализовано взаимодействие между слоем View и слоем Model. Также в этом файле реализуется работа класса Api.
 
-Класс **Api** - отвечает за реализацию работы с запросами к серверу. В конструктор принимает  baseUrl и options. Содержит два метода – метод, отвечающий за HTTP GET запрос к серверу, и метод, отвечающий за HTTP POST запрос к серверу.
+Класс **Api** - отвечает за реализацию работы с запросами к серверу.
+``` 
+constructor(baseUrl: string, options: RequestInit = {})`- принимает базовый URL и глобальные опции для всех запросов(опционально)
+```
+
 Поля класса:
 ```
 readonly baseUrl: string;
@@ -55,129 +62,161 @@ protected options: RequestInit;
 ```
 Методы класса:
 ```
-get(uri: string): void
-post(uri: string, data: object, method: ApiPostMethods): void
+get(uri: string): void – метод, отвечающий за HTTP GET запрос к серверу
+post(uri: string, data: object, method: ApiPostMethods): void - метод, отвечающий за HTTP POST запрос к серверу
+handleResponse(response: Response): Promise<object> - обрабатывает HTTP-ответ
 ```
 
 ## Слой работы с данными приложения:
 
-Класс **ItemsModel** отвечает за инкапсуляцию работы с данными приложения, которые получает от сервера. Поле items – массив объектов, реализующий интерфейс IItem. Каждый объект этого массива хранить информацию об одном товаре, включая его название, описание, категорию, цену и т. д.
-Поля класса:
+Абстрактный класс **Model** - базовая модель, чтобы можно было отличить ее от простых объектов с данными. В конструктор 
 ```
-_items: IItem[]
+constructor(data: Partial<T>, protected events: IEvents) 
+```
+ожидает объект для инициализации модели и объект брокера событий.
+
+Методы класса:
+```
+emitChanges(event: string, payload?: object): void – генерирует события
 ```
 
-Класс **BasketModel** – отвечает за инкапсуляцию работы с данными заказа в корзине приложения. Он содержит бизнес-логику добавления, удаления товаров в массив объектов, выбранных пользователем для покупки. Каждый объект реализует интерфейс IItem. Класс также ответственен за подсчет конечной стоимости всех товаров в корзине. 
+
+Класс **AppState** отвечает за данные товаров приложения и информацию заказа пользователя. Дочерний класс Model.
+
 Поля класса:
 ```
-_items: IItem[]
-_totalPrice: number
+    basket: string[];
+    catalog: IItem[];
+    loading: boolean;
+    order: IOrder;
+    formErrors: FormErrors = {};
+
 ```
 Методы класса:
 ```
-addItem():
-removeItem():
-getTotalPrice():
+setCatalog(items: IItem[]): void – заполнение каталога карточками товаров
+clearBasket(): void - очищает объект order
+getTotal(): number – вычисление общей суммы заказа
+validateOrder(): boolean – валидация данных, введенных пользователем 
 ```
 
 ## Слой представления UI:
-
-Класс **Item** отвечает за реализацию визуального отображения карточки товара в UI приложения. Класс реализует интерфейс IItem.Поля класса подробно описывают карточку товара – название товара, категория, цена и т.д. Класс имеет сеттеры и геттеры для сеттинга и получения значений полей класса. Для кнопки действия использует компонент Button.
-Когда пользователь взаимодействует с карточкой товара – добавить в корзину – событие перехватывает презентер и обновляет модель данных компонента BasketModel.
+Абстрактный класс **Component** - создает инструментарий для работы с DOM в дочерних компонентах. Конструктор класса:
 ```
-interface IItem {
-	title: string;
-   	image: string;
-	description?: string;
-	category?: string;
-	price: number;
-button: IButton;
-}
+constructor(protected readonly container: HTMLElement) 
+``` 
+Методы класса:
 ```
-Поля класса:
+render(data?: Partial<T>): HTMLElement
+setText(element: HTMLElement, value: unknown): void
 ```
-_title: string
-_image: string
-_price?: number
-_category?: string
-_description?: string
-_button?: IButton
+Класс **Page** отвечает за реализацию отображения каталога товаров на главной странице приложения, управление счетчиком иконки корзины на главной странице. Является дочерним классом Component. Конструкторе класса ожидает два параметра: container типа HTMLElement и events типа IEvents.
+```
+constructor(container: HTMLElement, protected events: IEvents)
 ```
 
-Класс **Page** отвечает за реализацию отображения каталога товаров на главной странице приложения, управление счетчиком иконки корзины на главной странице. Поле items – это массив объектов, реализующий интрефейс IItem. basketCounter отображает количество товаров в корзине.  Класс содержит методы отрисовки каталога товаров на странице, обновления значений поля basketCounter.
+
 Поля класса:
 ```
-_items: IItem[]
-_basketCounter: number
+_ catalog: HTMLElement[];
+_basketCounter: number;
+_wrapper: HTMLElement;
+_basket: HTMLElement;
 ```
 Методы класса:
 ```
-render(data: IItem[]): 
-updateBasket():void
+set basketCounter (value: number): void – сеттер счетчика корзины
+set catalog(items: HTMLElement[]): void – сеттер каталога товаров
 ```
 
-Класс **Modal** - отвечает за реализацию модальных окон приложения. В конструктор принимается контейнер,  в котором будет размещаться контент модального окна. Содержит методы открытия и закрытия модального окна, также сеттер установки входящего контента.
+Класс **Item** отвечает за реализацию визуального отображения карточки в UI приложения. Класс реализует интерфейс IItem. Является дочерним классом Component. В конструктор ожидает селектор типа string, контейнер типа HTMLElement:
+```
+constructor(protected blockName: string, container: HTMLElement, actions?: IItemActions)
+```
+
+Поля класса:
+```
+    _title: HTMLElement;
+   _image?: HTMLImageElement;
+   _description?: HTMLElement;
+   _button?: HTMLButtonElement;
+```
+
+Методы класса – сеттеры и геттеры для заголовка, описания, изображения.
+
+
+
+Класс **Modal** - отвечает за реализацию модальных окон приложения. В конструктор принимается контейнер, в котором будет размещаться контент модального окна. Является дочерним классом Component.
+```
+constructor(container: HTMLElement, protected events: IEvents)
+
+```
+
+Содержит методы открытия и закрытия модального окна, также сеттер установки входящего контента.
+
+
 Поля класса:
 ```
 _content: HTMLElement
-button: HTMLButtonElement
+_button: HTMLButtonElement
 ```
 Методы класса:
 ```
 open(): void
 close(): void
-set content(data:HTMLElement):
+set content(data:HTMLElement): void
 ```
 
-Класс **Form** отвечает за реализацию форм приложения, с помощью которого собираются данные от пользователя и их последующая передача в презентер для обработки и взаимодействия с моделью. Поля класса formElement – DOM-элемент формы – контейнер для элементов формы; inputField – поля ввода данных от пользователя; и поля, соответствующие данным пользователя (способ оплаты, адрес, телефон и т.д.)
-Класс содержит метод для отрисовки формы на странице, методы работы с формой: возвращение данных, установление данных для inputField и очистка формы.
+
+Класс **Form** отвечает за реализацию базовых форм приложения, с помощью которого собираются данные от пользователя. Дочерний класс Component.
+```
+constructor(protected container: HTMLFormElement, protected events: IEvents)
+```
+
 Поля класса:
 ```
-_formElement: HTMLFormElement
-_inputField: HTMLInputElement
-payment:
-address: string
-mail: string
-mobile: number
+_submit: HTMLButtonElement;
+_errors: HTMLElement;
 ```
 Методы класса:
 ```
-render(): 
-getValue(): HTMLInputElement
-setValue(data: string): void
-clearValue(): void
+    onInputChange(field: keyof T, value: string): void – вызывается при наборе текста в формах
+    set valid(value: boolean): void – валидирует кнопку сабмита для отправки 
+    set errors(value: string): void – устанавливает формат ошибки в формах
+    render(state: Partial<T> & IFormState): HTMLElemenet – возвращает элемент формы в разметке
 ```
 
-Класс **Basket** отвечает за реализацию отображения корзины и взаимодействия с пользователем через графический интерфейс. Содержит сеттеры для установки списка товаров к корзине и для установки значения общей суммы товаров к корзине. Также содержит элементы управления интерфейсом кнопки buttonNext и buttonDelete.
-Поля класса:
+Класс **Order ** отвечает за реализацию визуального отображения формы заказа в UI приложения, с выбором способа оплаты заказа и адреса доставки. В конструктор принимает контейнер типа HTMLFormElement, и кастомные события типа IEvents. Является дочерним классом Form.
+
 ```
-_items: IItem[]
-_total:
-_buttonNext:
-_buttonDelete:
+constructor(container: HTMLFormElement, events: IEvents)
 ```
+
 Методы класса:
 ```
-set total():
-set items(data: ):
-```
-
-Класс **Button** отвечает за реализацию отображения кнопок приложения. Содержит строковую переменную title, хранящую текст кнопки, и булевую переменную active для отображения активности/неактивности кнопки для нажатия. Также сеттер для установки теста кнопки. Класс реализует интерфейс IButton.
-```
-interface IItem {
-	title: string;
-   	active: boolean;
+    set phone(value: string): void
+    set email(value: string): void
 }
 ```
+Класс **Basket** отвечает за реализацию отображения корзины и взаимодействия с пользователем через графический интерфейс. Содержит сеттеры для установки списка товаров к корзине и для установки значения общей суммы товаров к корзине.В конструктор пинимает контейнер типа HTMLElement,, и события типа EventEmitter. Является дочерним классом Component.
+
+```
+constructor(container: HTMLElement, protected events: EventEmitter)
+```
+
 Поля класса:
 ```
-_title: string
-active: boolean
+_list: HTMLElement;
+_total: HTMLElement;
+_button: HTMLElement;
 ```
 Методы класса:
 ```
-set title():
+    set items(items: HTMLElement[]) : void
+    set selected(items: string[]) : void
+    set total(total: number) : void
 ```
+
 
 ## Брокер событий:
 Класс EventEmitter – отвечает за реализацию работы событий приложения. Его функции: возможность установить и снять слушателей̆ событий, вызвать слушателей̆ при возникновении события.
@@ -190,4 +229,59 @@ onAll() - устанавливает обработчик на все событ
 offAll() - снимает обработчик со всех событий
 trigger() - сделать коллбек триггер, генерирующий событие при вызове
 ```
+## Основные типы/интерфейсы проекта:
+
+```
+interface IAppState {
+    catalog: IItem[];
+    basket: string[];
+    order: IOrder | null;
+}
+```
+
+```
+interface IPage {
+    basketCounter: number;
+    catalog: HTMLElement[];
+}
+```
+```
+interface IItem<T> {
+    title: string;
+    description?: string | string[];
+    image: string;
+    price: number;
+    category: string
+}
+interface IItemActions {
+    onClick: (event: MouseEvent) => void;
+}
+```
+```
+interface IModalData {
+    content: HTMLElement;
+}
+```
+```
+interface IFormState {
+    valid: boolean;
+    errors: string[];
+}
+```
+```
+interface IOrderForm {
+	payment: string;
+	email?: string;
+	phone?: string;
+	address: string;
+}
+```
+```
+interface IBasketView {
+    items: HTMLElement[];
+    total: number;
+    selected: string[];
+}
+```
+
 
