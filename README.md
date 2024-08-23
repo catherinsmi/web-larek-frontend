@@ -85,19 +85,30 @@ emitChanges(event: string, payload?: object): void – генерирует со
 
 Поля класса:
 ```
-    basket: string[];
-    catalog: IItem[];
-    loading: boolean;
-    order: IOrder;
-    formErrors: FormErrors = {};
+catalog: массив товаров.
+basket: массив строк, представляющий корзину (не используется в методах, но может быть предназначен для других целей).
+basketProducts: массив товаров, находящихся в корзине (объекты типа IItem).
+order: объект, представляющий текущий заказ с инициализацией всех полей.
+formErrors: объект, содержащий ошибки в форме.
 
 ```
 Методы класса:
 ```
-setCatalog(items: IItem[]): void – заполнение каталога карточками товаров
-clearBasket(): void - очищает объект order
-getTotal(): number – вычисление общей суммы заказа
-validateOrder(): boolean – валидация данных, введенных пользователем 
+setCatalog(items: IItem[]): void - устанавливает каталог товаров и вызывает событие изменения.
+
+addItemToBasket(item: IItem): void - добавляет товар в корзину и обновляет заказ, добавляя идентификатор товара в массив items.
+Вызывает событие изменения корзины.
+
+getTotal(): number -  вычисляет и возвращает общую стоимость заказа, суммируя цены товаров по их идентификаторам.
+
+getOrder(): IOrder - возвращает текущий заказ.
+
+clearBasket(): void - очищает корзину, сбрасывает общую стоимость заказа и вызывает событие изменения.
+
+deleteFromBasket(item: IItem): void - удаляет товар из корзины по идентификатору и вызывает события изменения корзины.
+
+setOrderField(field: keyof IForm, value: string): void - устанавливает значение указанного поля заказа и вызывает валидацию. Если валидация проходит успешно, генерирует событие, что заказ готов.
+validateOrder(): boolean - проверяет корректность введенных данных в заказе (email, телефон, способ оплаты и адрес). Если находятся ошибки, они обновляются в объекте formErrors и вызывается соответствующее событие.
 ```
 
 ## Слой представления UI:
@@ -118,14 +129,14 @@ constructor(container: HTMLElement, protected events: IEvents)
 
 Поля класса:
 ```
-_ catalog: HTMLElement[];
-_basketCounter: number;
+_catalog: HTMLElement[];
+_counter: number;
 _wrapper: HTMLElement;
 _basket: HTMLElement;
 ```
-Методы класса:
+Методы класса: 
 ```
-set basketCounter (value: number): void – сеттер счетчика корзины
+set counter (value: number): void – сеттер счетчика корзины
 set catalog(items: HTMLElement[]): void – сеттер каталога товаров
 ```
 
@@ -136,7 +147,7 @@ constructor(protected blockName: string, container: HTMLElement, actions?: IItem
 
 Поля класса:
 ```
-    _title: HTMLElement;
+   _title: HTMLElement;
    _image?: HTMLImageElement;
    _description?: HTMLElement;
    _button?: HTMLButtonElement;
@@ -158,7 +169,7 @@ constructor(container: HTMLElement, protected events: IEvents)
 Поля класса:
 ```
 _content: HTMLElement
-_button: HTMLButtonElement
+_closeButton: HTMLButtonElement
 ```
 Методы класса:
 ```
@@ -186,7 +197,13 @@ _errors: HTMLElement;
     render(state: Partial<T> & IFormState): HTMLElemenet – возвращает элемент формы в разметке
 ```
 
-Класс **Order ** отвечает за реализацию визуального отображения формы заказа в UI приложения, с выбором способа оплаты заказа и адреса доставки. В конструктор принимает контейнер типа HTMLFormElement, и кастомные события типа IEvents. Является дочерним классом Form.
+
+Класс **Order**  расширяет класс Form с типом IForm и отвечает за функциональность заказа в форме. В конструктор принимает контейнер типа HTMLFormElement, и кастомные события типа IEvents.  Он имеет два защищенных поля:
+
+```
+_cashBtn: кнопка для выбора оплаты наличными.
+_cardBtn: кнопка для выбора онлайн-оплаты.
+```
 
 ```
 constructor(container: HTMLFormElement, events: IEvents)
@@ -194,10 +211,22 @@ constructor(container: HTMLFormElement, events: IEvents)
 
 Методы класса:
 ```
-    set phone(value: string): void
-    set email(value: string): void
-}
+    set address(value: string): void -  устанавливает значение адреса в соответствующий элемент формы.
+    toggleButtons(activeButton: HTMLButtonElement, inactiveButton: HTMLButtonElement): void  - управляет классами CSS кнопок, чтобы визуально отображать активное состояние кнопки.
+
 ```
+
+Класс **Contacts** также расширяет класс Form с типом IForm и предоставляет простую функциональность для управления контактной информацией
+
+```
+constructor(container: HTMLFormElement, events: IEvents)
+```
+
+```
+set phone(value: string): void -  устанавливает значение номера телефона в соответствующий элемент формы.
+set email(value: string): void -  устанавливает значениев соответствующий элемент формы.
+```
+
 Класс **Basket** отвечает за реализацию отображения корзины и взаимодействия с пользователем через графический интерфейс. Содержит сеттеры для установки списка товаров к корзине и для установки значения общей суммы товаров к корзине.В конструктор пинимает контейнер типа HTMLElement,, и события типа EventEmitter. Является дочерним классом Component.
 
 ```
@@ -206,15 +235,30 @@ constructor(container: HTMLElement, protected events: EventEmitter)
 
 Поля класса:
 ```
-_list: HTMLElement;
-_total: HTMLElement;
-_button: HTMLElement;
+_list: элемент DOM, представляющий список товаров в корзине.
+_total: элемент DOM, показывающий общую стоимость товаров в корзине.
+_button: кнопка для открытия заказа.
 ```
 Методы класса:
 ```
-    set items(items: HTMLElement[]) : void
-    set selected(items: string[]) : void
-    set total(total: number) : void
+    set items(items: HTMLElement[]) : void - cеттер для items. Если в массиве items есть товары, кнопка становится активной (вызывает метод setDisabled с параметром false), и элементы списка заменяются на новые.
+    set total(total: number) : void - cеттер для свойства total.
+```
+Класс **Success** расширяет класс Component и отвечает за отображение информации о завершенном заказе. Конструктор принимает два параметра: container: HTMLElement элемент, в котором будет размещено уведомление об успешном заказе.
+actions:ISuccessActions.
+
+```
+constructor(container: HTMLElement, actions: ISuccessActions)
+```
+Поля класса:
+```
+_close: элемент DOM, представляющий кнопку закрытия уведомления об успешном заказе.
+_total: элемент DOM, показывающий общую сумму, списанную с клиента.
+```
+
+Метод класса:
+```
+ set total(value: number): void - cеттер для свойства total
 ```
 
 
@@ -236,6 +280,7 @@ interface IAppState {
     catalog: IItem[];
     basket: string[];
     order: IOrder | null;
+    дописать
 }
 ```
 
@@ -246,7 +291,7 @@ interface IPage {
 }
 ```
 ```
-interface IItem<T> {
+interface IItem {
     title: string;
     description?: string | string[];
     image: string;
@@ -281,6 +326,11 @@ interface IBasketView {
     items: HTMLElement[];
     total: number;
     selected: string[];
+}
+```
+```
+interface ISuccess {
+    total: number;
 }
 ```
 
