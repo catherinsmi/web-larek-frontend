@@ -6,7 +6,7 @@ import { Modal } from './components/common/Modal';
 import { AppState } from './components/AppState';
 import { Page } from './components/Page';
 import { Item, IItem, PreviewItem, BasketItem   } from './components/Item';
-import { Basket } from './components/common/Basket';
+import { Basket } from './components/Basket';
 import { Order, Contacts, IForm} from './components/Order';
 import { Success} from './components/Success';
 import { cloneTemplate, ensureElement } from './utils/utils';
@@ -83,13 +83,13 @@ events.on('basket:open', () => {
 			})
 		}),
 	});
-	basket.total = appState.getTotal()
+	basket.total = appState.getTotal() 
 });
 
+
 //Подписываемся на событие изменения товаров к крозине
-events.on('basket:changed',  (item: IItem) => {
+events.on('basket:changed',  () => {
 	page.counter = appState.basketProducts.length
-	basket.total = appState.getTotal()
 })
 
 //Открытие формы заказа
@@ -124,6 +124,7 @@ events.on('contacts:submit', () => {
                 onClick: () => {
                     modal.close();
                     appState.clearBasket();
+					basket.total = 0;
                 }
             });
             modal.render({
@@ -131,6 +132,7 @@ events.on('contacts:submit', () => {
 					total: result.total
 				})
             });
+		
         })
         .catch(err => {
             console.error(err);

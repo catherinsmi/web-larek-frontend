@@ -96,11 +96,23 @@ export class PreviewItem extends Item<IItem> {
 		if (actions?.onClick) {
 			this._buttonAddToBasket.addEventListener('click', actions.onClick);
 		}
+
 	}
 
 	set description(value: string) {
     	this.setText(this._description, value);
 	}
+
+	set price(value: number) {
+        if (value) {
+            this.setText(this._price, `${String(value)} синапсов`);
+            this._buttonAddToBasket.removeAttribute('disabled'); 
+        } else {
+            this.setText(this._price, 'Бесценно');
+            this._buttonAddToBasket.setAttribute('disabled', 'true'); 
+        }
+    }
+
 }
 
 export class BasketItem extends Component<IItem>{
@@ -126,11 +138,7 @@ export class BasketItem extends Component<IItem>{
 	}
 
 	set price(value: number) {
-		if (value) {
-			this.setText(this._price, `${String(value)} синапсов`);
-		} else {
-			this.setText(this._price, 'Бесценно');
-		}
+		this.setText(this._price, `${String(value)} синапсов`);
 	}
 
 	set index(value: string) {

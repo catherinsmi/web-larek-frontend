@@ -24,28 +24,30 @@ export class Order extends Form<IForm> {
         this._cardBtn = ensureElement<HTMLButtonElement>('button[name=card]', container);
 
         this._cashBtn.addEventListener('click', () => {
-            this.toggleButtons(this._cashBtn, this._cardBtn)
+            this.toggleCash()
+            this.toggleCard(false)
             events.emit('order.payment:change', {
                 field: 'payment',
                 value: 'cash',
             })
         });
         this._cardBtn.addEventListener('click', () => {
-            this.toggleButtons(this._cardBtn, this._cashBtn)
+            this.toggleCard()
+            this.toggleCash(false)
             events.emit('order.payment:change', {
                 field: 'payment',
                 value: 'online',
             })
         });
     }
-
-    private toggleButtons(activeButton: HTMLButtonElement, inactiveButton: HTMLButtonElement): void {
-        activeButton.classList.add('button_alt-active');
-        activeButton.classList.remove('button_alt');
-
-        inactiveButton.classList.add('button_alt');
-        inactiveButton.classList.remove('button_alt-active');
+    toggleCard(state: boolean = true) {
+        this.toggleClass(this._cardBtn, 'button_alt-active', state);
     }
+
+    toggleCash(state: boolean = true) {
+        this.toggleClass(this._cashBtn, 'button_alt-active', state);
+    }
+
 
     set address(value: string) {
 		(this.container.elements.namedItem('address') as HTMLInputElement).value =

@@ -40,32 +40,43 @@ export class AppState extends Model<IAppState> {
     }
 
     addItemToBasket(item:IItem){
+       if (this.isItemInBasket(item.id)) {
+            alert(`Товар ${item.title} уже в корзине, одного вам достаточно 😛.`);
+            return; 
+       }    
     
        this.basketProducts.push(item)
        this.order.items.push(item.id)
-       this.emitChanges('basket:changed', {item: item})
+       this.emitChanges('basket:changed', {})
     }
 
     getTotal() {
-        this.order.total = this.order.items.reduce((a, c) => a + this.catalog.find(it => it.id === c).price, 0)
+        this.order.total = this.basketProducts.reduce((a, c) => a + c.price, 0)
         return this.order.total
     }
 
     getOrder(){
-        return this.order
+        return this.order 
     }
 
     clearBasket() {
         this.basketProducts = [];
-        this.order.total = 0;
+        this.order = Object.assign({}, {    
+        email: '',
+        phone: '',
+        items: [],
+        total: 0,
+        address: '',
+        payment: ''})
         this.emitChanges('basket:changed', {})
     }
 
     deleteFromBasket(item:IItem){
         this.basketProducts = this.basketProducts.filter(i => i.id != item.id)
-        
-        this.emitChanges('basket:open', {item: item})
-        this.emitChanges('basket:changed', {item: item})
+        this.order.items = this.order.items.filter((i) => i !== item.id);
+
+        this.emitChanges('basket:open', {})
+        this.emitChanges('basket:changed', {})
     }
 
     setOrderField(field: keyof IForm , value: string) {
@@ -96,6 +107,10 @@ export class AppState extends Model<IAppState> {
         this.formErrors = errors;
         this.events.emit('formErrors:change', this.formErrors);
         return Object.keys(errors).length === 0;
+    }
+
+    isItemInBasket(itemId: string): boolean {
+        return this.basketProducts.some(item => item.id === itemId);
     }
 }
 
